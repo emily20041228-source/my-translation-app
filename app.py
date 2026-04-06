@@ -47,8 +47,8 @@ system_instruction = """
 
 # 模型初始化防呆
 try:
-    model = genai.GenerativeModel('models/gemini-1.5-flash', system_instruction=system_instruction)
-    print("✅ 成功啟動模型: models/gemini-1.5-flash")
+    model = genai.GenerativeModel('models/gemini-2.5-flash', system_instruction=system_instruction)
+    print("✅ 成功啟動模型: models/gemini-2.5-flash")
 except Exception:
     model = genai.GenerativeModel('models/gemini-1.5-pro', system_instruction=system_instruction)
     print("⚠️ 降級使用模型: models/gemini-1.5-pro")

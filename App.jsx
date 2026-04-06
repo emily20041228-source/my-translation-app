@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 
-const API_BASE = 'http://10.220.79.190:5000'; // 自動換成本機區域網路 IP
+const API_BASE = 'https://learn-english-wa5d.onrender.com'; // 確保呼叫正確的 Flask 端口
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('Chaining');
@@ -15,8 +15,6 @@ const App = () => {
 
   // === 模式一：Chaining (逐步引導) ===
   const [chainingInput, setChainingInput] = useState('');
-  const [chainingFeedback, setChainingFeedback] = useState(null);
-  const [isChainingEvalLoading, setIsChainingEvalLoading] = useState(false);
 
   // === 模式二：Socratic (蘇格拉底對話) ===
   const [chatHistory, setChatHistory] = useState([]);
@@ -25,8 +23,6 @@ const App = () => {
 
   // === 模式三：Mastery (精熟測驗) ===
   const [masteryInput, setMasteryInput] = useState('');
-  const [masteryScoreCard, setMasteryScoreCard] = useState(null);
-  const [isMasteryEvalLoading, setIsMasteryEvalLoading] = useState(false);
 
   // 初始化載入題目
   useEffect(() => {
@@ -35,11 +31,13 @@ const App = () => {
         const response = await fetch(`${API_BASE}/api/questions`);
         const data = await response.json();
         if (data.status === 'success' && data.data.length > 0) {
+          // 隨機挑選一題
           const randomIndex = Math.floor(Math.random() * data.data.length);
           const q = data.data[randomIndex];
           setCurrentQuestion(q);
           const qText = q.Chinese || q.chinese || q.Question || q.question;
           
+          // 使用 AI 幫這題產出 Chaining 的提示
           fetch(`${API_BASE}/api/generate_hint`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -49,15 +47,17 @@ const App = () => {
              setHintLoading(false);
           });
 
+          // 初始化聊天室
           setChatHistory([{ 
             role: 'model', 
-            content: `哈囉！我是你的專屬翻譯家教。我們來練習這句翻譯：「${qText}」您可以試試看先找主詞動詞嗎？` 
+            content: `哈囉！我是你的專屬翻譯家教。我們來練習這句翻譯：「${qText}」您可以試試看先翻一部分喔？` 
           }]);
         } else {
           throw new Error('No data');
         }
       } catch (error) {
         console.warn("無法從資料庫獲取題目，改用預設題目", error);
+        // 預設後備題目
         const fallbackQ = {
           Chinese: "我們最好現在就出發，以免遇到塞車。",
         };
@@ -66,7 +66,7 @@ const App = () => {
         setHintLoading(false);
         setChatHistory([{ 
           role: 'model', 
-          content: `哈囉！我是你的專屬翻譯家教。我們來練習這句翻譯：「${fallbackQ.Chinese}」你可以先試著找出主詞和動詞嗎？` 
+          content: `哈囉！我是你的專屬翻譯家教。我們來練習這句翻譯：「${fallbackQ.Chinese}」你可以先試著翻出來嗎？` 
         }]);
       } finally {
         setQuestionLoading(false);
@@ -75,6 +75,7 @@ const App = () => {
     fetchQuestions();
   }, []);
 
+  // 自動捲動到最新訊息
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -85,76 +86,52 @@ const App = () => {
     }
   }, [chatHistory, activeTab]);
 
+  // 共用日誌寫入函數 (/api/log)
   const handleLog = async (sheetName, rowData) => {
     try {
-      await fetch(`${API_BASE}/api/log`, {
+      const response = await fetch(`${API_BASE}/api/log`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer 12345' },
-        body: JSON.stringify({ sheet_name: sheetName, row_data: rowData })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer 12345'
+        },
+        body: JSON.stringify({
+          sheet_name: sheetName,
+          row_data: rowData
+        })
       });
+      const data = await response.json();
+      if (data.status === 'success') {
+        console.log(`[${sheetName}] 紀錄已備份至雲端。`);
+      } else {
+        alert(`Google Sheets 記錄失敗: ${data.message} \n請確認工作表 "${sheetName}" 是否已建立！`);
+      }
     } catch (error) {
       console.error('日誌寫入時連線異常:', error);
     }
   };
 
-  const submitChaining = async () => {
-    if (!chainingInput.trim() || isChainingEvalLoading) return;
-    setIsChainingEvalLoading(true);
+  const submitChaining = () => {
+    if (!chainingInput.trim()) return;
     const timestamp = new Date().toLocaleString('zh-TW');
     const qText = currentQuestion.Chinese || currentQuestion.chinese || currentQuestion.Question;
-    
-    // 寫入日誌
     handleLog('Chaining', [timestamp, qText, chainingInput]);
-
-    try {
-      const response = await fetch(`${API_BASE}/api/eval_chaining`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: qText, input: chainingInput })
-      });
-      const data = await response.json();
-      if (data.status === 'success') {
-        setChainingFeedback(data.feedback);
-      } else {
-        alert('AI 回饋發生錯誤: ' + data.message);
-      }
-    } catch (error) {
-      alert('無法連線到 AI 伺服器');
-    } finally {
-      setIsChainingEvalLoading(false);
-    }
+    alert("已送出逐步翻譯答案！");
+    setChainingInput('');
   };
 
-  const submitMastery = async () => {
-    if (!masteryInput.trim() || isMasteryEvalLoading || masteryScoreCard) return;
-    setIsMasteryEvalLoading(true);
+  const submitMastery = () => {
+    if (!masteryInput.trim()) return;
     const timestamp = new Date().toLocaleString('zh-TW');
     const qText = currentQuestion.Chinese || currentQuestion.chinese || currentQuestion.Question;
-    
-    // 寫入日誌
     handleLog('Mastery', [timestamp, qText, masteryInput]);
-
-    try {
-      const response = await fetch(`${API_BASE}/api/eval_mastery`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: qText, input: masteryInput })
-      });
-      const data = await response.json();
-      if (data.status === 'success') {
-        setMasteryScoreCard(data.data);
-      } else {
-        alert('AI 評分發生錯誤: ' + data.message);
-      }
-    } catch (error) {
-      alert('無法連線到 AI 伺服器');
-    } finally {
-      setIsMasteryEvalLoading(false);
-    }
+    alert("已送出精熟測驗翻譯解答！測驗完成。");
+    setMasteryInput('');
   };
 
   const submitChat = async () => {
     if (!chatInput.trim() || loading) return;
+    
     const userMessage = { role: 'user', content: chatInput };
     const newHistory = [...chatHistory, userMessage];
     setChatHistory(newHistory);
@@ -165,6 +142,7 @@ const App = () => {
     handleLog('Socratic', [timestamp, 'Student', userMessage.content]);
 
     try {
+      // 呼叫 Gemini AI
       const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -212,36 +190,26 @@ const App = () => {
         </div>
       </header>
 
-      {/* Chaining 模式 */}
+      {/* 根據不同模式渲染不同區塊 */}
       {activeTab === 'Chaining' && (
         <div className="content-area">
           <div className="instruction-box">
             <strong>翻譯題目：</strong> {currentChinese}<br/><br/>
             <strong>AI 老師提示：</strong> {hintLoading ? <span className="loading-indicator" style={{marginLeft: 0}}>AI 正在思考這題的最佳提示...</span> : aiChainingHint}
           </div>
-          
           <div className="input-area">
             <textarea 
               className="custom-input" 
               rows="4" 
-              placeholder="請試著拼湊或打出部分翻譯..."
+              placeholder="請輸入您的答案..."
               value={chainingInput}
               onChange={(e) => setChainingInput(e.target.value)}
             />
-            <button className="action-btn" onClick={submitChaining} disabled={isChainingEvalLoading}>
-              {isChainingEvalLoading ? 'AI 正在檢查...' : '送出檢查錯誤'}
-            </button>
+            <button className="action-btn" onClick={submitChaining}>送出答案並記錄</button>
           </div>
-
-          {chainingFeedback && (
-            <div className="ai-feedback-box">
-              <strong>✨ 助教回饋：</strong> {chainingFeedback}
-            </div>
-          )}
         </div>
       )}
 
-      {/* Socratic 模式 */}
       {activeTab === 'Socratic' && (
         <div className="content-area">
           <div className="chat-window">
@@ -270,7 +238,6 @@ const App = () => {
         </div>
       )}
 
-      {/* Mastery 模式 */}
       {activeTab === 'Mastery' && (
         <div className="content-area">
           <div className="instruction-box">
@@ -285,46 +252,9 @@ const App = () => {
               placeholder="請寫下您最終完成的翻譯句子..."
               value={masteryInput}
               onChange={(e) => setMasteryInput(e.target.value)}
-              disabled={masteryScoreCard !== null} // 評分後鎖定
             />
-            {!masteryScoreCard && (
-              <button className="action-btn" onClick={submitMastery} disabled={isMasteryEvalLoading}>
-                 {isMasteryEvalLoading ? '大考中心閱卷中...' : '提交終極測驗'}
-              </button>
-            )}
+            <button className="action-btn" onClick={submitMastery}>提交精熟測驗並記錄</button>
           </div>
-
-          {masteryScoreCard && (
-            <div className="score-card">
-              <div className="score-header">
-                <h3 className="score-title">🏆 學測級分評鑑</h3>
-                <span className="score-points">{masteryScoreCard.score} / 5 分</span>
-              </div>
-              
-              <div className="score-section">
-                <h4>⚠️ 需改進或錯誤之處：</h4>
-                {masteryScoreCard.mistakes.length > 0 ? (
-                  <ul className="mistake-list">
-                    {masteryScoreCard.mistakes.map((m, i) => <li key={i}>{m}</li>)}
-                  </ul>
-                ) : <span style={{color: '#94a3b8', paddingLeft: 20}}>完美！沒有任何被扣分的錯誤。</span>}
-              </div>
-
-              <div className="score-section">
-                <h4>✨ 寫得好的地方：</h4>
-                {masteryScoreCard.good_points.length > 0 ? (
-                  <ul className="good-list">
-                    {masteryScoreCard.good_points.map((g, i) => <li key={i}>{g}</li>)}
-                  </ul>
-                ) : <span style={{color: '#94a3b8', paddingLeft: 20}}>尚可，可以再用更精準的詞彙。</span>}
-              </div>
-
-              <div className="score-section" style={{marginTop: 20}}>
-                <h4>📝 大考中心參考解答：</h4>
-                <p className="standard-answer">{masteryScoreCard.standard_answer}</p>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
