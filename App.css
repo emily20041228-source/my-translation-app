@@ -1,0 +1,297 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+  color: #f8fafc;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 玻璃擬真主容器 */
+.app-container {
+  width: 90%;
+  max-width: 800px;
+  background: rgba(30, 41, 59, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  padding: 40px;
+  animation: fadeIn 0.8s ease-out;
+  display: flex;
+  flex-direction: column;
+  min-height: 600px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 標題與導覽列 */
+.header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.title {
+  font-size: 2.2rem;
+  font-weight: 600;
+  background: linear-gradient(to right, #38bdf8, #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0 0 20px 0;
+}
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  padding: 5px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 999px;
+  width: max-content;
+  margin: 0 auto;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  padding: 10px 24px;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+  color: #e2e8f0;
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+/* 內容區塊動畫 */
+.content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  animation: fadeSwitch 0.4s ease-in;
+}
+
+@keyframes fadeSwitch {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.instruction-box {
+  background: rgba(59, 130, 246, 0.1);
+  border-left: 4px solid #3b82f6;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 25px;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.custom-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 18px;
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: all 0.3s;
+  box-sizing: border-box;
+}
+
+.custom-input:focus {
+  outline: none;
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
+}
+
+.action-btn {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: #fff;
+  border: none;
+  padding: 16px 28px;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  align-self: flex-end;
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -10px rgba(99, 102, 241, 0.6);
+}
+
+/* 聊天室區塊專用 */
+.chat-window {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  overflow-y: auto;
+  max-height: 400px;
+  margin-bottom: 20px;
+}
+
+.chat-bubble {
+  max-width: 80%;
+  padding: 14px 20px;
+  border-radius: 18px;
+  font-size: 1rem;
+  line-height: 1.5;
+  animation: messagePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes messagePop {
+  from { opacity: 0; transform: scale(0.8) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.chat-bubble.model {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+
+.chat-bubble.user {
+  background: linear-gradient(135deg, #6366f1, #3b82f6);
+  color: #fff;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-input-wrapper {
+  display: flex;
+  gap: 10px;
+}
+
+.chat-input-wrapper .custom-input {
+  flex: 1;
+  margin: 0;
+}
+
+.chat-input-wrapper .action-btn {
+  align-self: stretch;
+}
+
+.loading-indicator {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  align-self: flex-start;
+  margin-left: 10px;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* AI 回饋區塊 (Chaining) */
+.ai-feedback-box {
+  background: rgba(16, 185, 129, 0.1);
+  border-left: 4px solid #10b981;
+  padding: 15px 20px;
+  border-radius: 8px;
+  margin-top: 15px;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: #a7f3d0;
+  animation: slideUp 0.3s ease-out;
+}
+
+/* 成績單卡片 (Mastery) */
+.score-card {
+  margin-top: 25px;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9));
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 25px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  animation: fadeIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.score-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 15px;
+  margin-bottom: 15px;
+}
+
+.score-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+}
+
+.score-points {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fbbf24;
+  text-shadow: 0 0 15px rgba(251, 191, 36, 0.4);
+}
+
+.score-section {
+  margin-bottom: 15px;
+}
+
+.score-section h4 {
+  margin: 0 0 8px 0;
+  color: #94a3b8;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mistake-list, .good-list {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.6;
+}
+
+.mistake-list li { color: #fca5a5; }
+.good-list li { color: #86efac; }
+
+.standard-answer {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 12px 15px;
+  border-radius: 8px;
+  color: #fff;
+  font-family: 'Consolas', monospace;
+  font-size: 1.05rem;
+  margin: 0;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+}
