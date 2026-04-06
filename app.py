@@ -59,7 +59,7 @@ system_instruction = """
 
 請一律用繁體中文。請確保你現在的第一句話立刻是提出第1步驟的問題。
 """
-model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
+model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=system_instruction)
 
 
 # ==========================================
