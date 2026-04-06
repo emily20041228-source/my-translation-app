@@ -28,8 +28,16 @@ def get_gspread_client():
 # ==========================================
 # 2. 設置 Google Gemini API
 # ==========================================
-GEMINI_API_KEY = 'AIzaSyB4oQg8kF0Cfur9opv5TYtjLnHaALyik88'
+# --- 修改這部分 ---
+import os
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+if not GEMINI_API_KEY:
+    # 這行是為了讓你在自己電腦測試時還能跑，沒抓到環境變數就用原來的
+    GEMINI_API_KEY = 'AIzaSyB4oQg8kF0Cfur9opv5TYtjLnHaALyik88'
+
 genai.configure(api_key=GEMINI_API_KEY)
+# ----------------
+
 
 # 初始化模型與系統提示詞
 system_instruction = """
