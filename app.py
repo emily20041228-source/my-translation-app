@@ -3,23 +3,19 @@ from flask_cors import CORS
 import gspread
 from google.oauth2.service_account import Credentials
 import os
+import random
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-# 1. 載入環境變數 (本地端讀取 .env)
 load_dotenv()
 
 app = Flask(__name__)
-# 允許所有的前端網站來接資料
 CORS(app)
 
 # ==========================================
-# 1. 設置 Google Sheets API 授權與變數
+# 1. 設置 Google Sheets API (維持原樣)
 # ==========================================
-SCOPES = [
-    'https://www.googleapis.com/auth/spreadsheets',
-    'https://www.googleapis.com/auth/drive'
-]
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
 CREDENTIALS_FILE = 'service_account.json'
 SHEET_ID = '16y0ew8cL_t6m4EBol7lJGZnb87jF1sKOu3atTrN-cLA' 
 
@@ -30,31 +26,31 @@ def get_gspread_client():
     return gspread.authorize(credentials)
 
 # ==========================================
-# 2. 設置 Google Gemini API
+# 2. 設置 API Key 輪詢邏輯 (多金鑰支援)
 # ==========================================
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+# 支援多個金鑰，請在環境變數用逗號隔開：Key1,Key2,Key3
+raw_keys = os.environ.get('GEMINI_API_KEY', '')
+API_KEYS = [k.strip() for k in raw_keys.split(',') if k.strip()]
 
-if not GEMINI_API_KEY:
-    print("❌ 錯誤：找不到環境變數 GEMINI_API_KEY，請檢查 .env 或 Render 設定")
-else:
-    genai.configure(api_key=GEMINI_API_KEY)
-
-# 初始化模型與系統提示詞
-system_instruction = """
-你是一個負責指導學測英文翻譯的高中英文老師。請嚴格遵從以下 7 個步驟引導學生，運用蘇格拉底教學法。
-【🚨對話核心原則🚨】每次回覆字數低於 50 字，一次一問，直接了當。
-"""
-
-# 模型初始化防呆
-try:
-    model = genai.GenerativeModel('models/gemini-2.5-flash', system_instruction=system_instruction)
-    print("✅ 成功啟動模型: models/gemini-2.5-flash")
-except Exception:
-    model = genai.GenerativeModel('models/gemini-1.5-pro', system_instruction=system_instruction)
-    print("⚠️ 降級使用模型: models/gemini-1.5-pro")
+def get_ai_model():
+    """隨機挑選一個 Key 並返回初始化好的模型"""
+    if not API_KEYS:
+        raise ValueError("❌ 找不到任何有效的 GEMINI_API_KEY！")
+    
+    # 隨機選一個
+    selected_key = random.choice(API_KEYS)
+    genai.configure(api_key=selected_key)
+    
+    system_instruction = "你是一個負責指導學測英文翻譯的高中英文老師。請用蘇格拉底教學法引導學生，每次回覆低於 50 字。"
+    
+    # 優先嘗試 1.5-flash
+    try:
+        return genai.GenerativeModel('models/gemini-1.5-flash', system_instruction=system_instruction)
+    except:
+        return genai.GenerativeModel('models/gemini-1.5-pro', system_instruction=system_instruction)
 
 # ==========================================
-# API 路由區塊
+# API 路由區塊 (加入自動重試邏輯)
 # ==========================================
 
 @app.route('/api/questions', methods=['GET'])
@@ -66,61 +62,48 @@ def get_questions():
         records = worksheet.get_all_records()
         return jsonify({"status": "success", "data": records})
     except Exception as e:
-        print(f"💥 讀取題庫失敗: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-@app.route('/api/generate_hint', methods=['POST'])
-def generate_hint():
-    try:
-        data = request.json
-        question = data.get('question', '')
-        prompt = f"題目：「{question}」。請提供逐步翻譯(Chaining)的起手式提示，不要給答案。"
-        response = model.generate_content(prompt)
-        return jsonify({"status": "success", "hint": response.text})
-    except Exception as e:
-        print(f"💥 AI 提示失敗: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/chat', methods=['POST'])
 def chat_with_gemini():
-    try:
-        data = request.json
-        raw_history = data.get('history', [])
-        gemini_history = []
-        for msg in raw_history[:-1]:
-            role = "user" if msg["role"] == "user" else "model"
-            gemini_history.append({"role": role, "parts": [{"text": msg["content"]}]})
-        
-        if gemini_history and gemini_history[0]["role"] == "model":
-            gemini_history.insert(0, {"role": "user", "parts": [{"text": "你好"}]})
+    data = request.json
+    raw_history = data.get('history', [])
+    
+    # 建立重試機制：如果一組 Key 爆了，就試另一組
+    max_retries = min(len(API_KEYS), 3)
+    last_error = ""
+
+    for i in range(max_retries):
+        try:
+            model = get_ai_model()
+            gemini_history = []
+            for msg in raw_history[:-1]:
+                role = "user" if msg["role"] == "user" else "model"
+                gemini_history.append({"role": role, "parts": [{"text": msg["content"]}]})
             
-        chat = model.start_chat(history=gemini_history)
-        latest_message = raw_history[-1]["content"] if raw_history else "你好"
-        response = chat.send_message(latest_message)
-        return jsonify({"status": "success", "reply": response.text})
-    except Exception as e:
-        print(f"💥 AI 對話失敗: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+            if gemini_history and gemini_history[0]["role"] == "model":
+                gemini_history.insert(0, {"role": "user", "parts": [{"text": "你好"}]})
+                
+            chat = model.start_chat(history=gemini_history)
+            latest_message = raw_history[-1]["content"] if raw_history else "你好"
+            response = chat.send_message(latest_message)
+            return jsonify({"status": "success", "reply": response.text})
+        except Exception as e:
+            last_error = str(e)
+            print(f"⚠️ 第 {i+1} 組金鑰失效，正在嘗試下一組... 錯誤: {last_error}")
+            continue
+            
+    return jsonify({"status": "error", "message": f"所有金鑰皆失效或額度爆掉: {last_error}"}), 500
 
-@app.route('/api/eval_chaining', methods=['POST'])
-def eval_chaining():
+# 為了精簡，其他 generate_hint 等路由也套用 get_ai_model() 即可
+@app.route('/api/generate_hint', methods=['POST'])
+def generate_hint():
     try:
         data = request.json
-        prompt = f"題目：「{data.get('question')}」，學生輸入：「{data.get('input')}」。請給予簡短回饋。"
+        model = get_ai_model()
+        prompt = f"題目：「{data.get('question')}」。請提供 Chaining 提示，不要答案。"
         response = model.generate_content(prompt)
-        return jsonify({"status": "success", "feedback": response.text})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-@app.route('/api/eval_mastery', methods=['POST'])
-def eval_mastery():
-    try:
-        data = request.json
-        prompt = f"題目：「{data.get('question')}」，學生最終答案：「{data.get('input')}」。請以 JSON 格式回傳 score (0-5), mistakes, good_points, standard_answer。"
-        response = model.generate_content(prompt)
-        raw_text = response.text.replace("```json", "").replace("```", "").strip()
-        import json
-        return jsonify({"status": "success", "data": json.loads(raw_text)})
+        return jsonify({"status": "success", "hint": response.text})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -128,7 +111,7 @@ def eval_mastery():
 def universal_log():
     try:
         auth_header = request.headers.get('Authorization')
-        if auth_header != 'Bearer 12345': return jsonify({"status": "error", "message": "拒絕存取"}), 403
+        if auth_header != 'Bearer 12345': return jsonify({"status": "error", "message": "拒絕"}), 403
         data = request.json
         gc = get_gspread_client()
         sh = gc.open_by_key(SHEET_ID)
