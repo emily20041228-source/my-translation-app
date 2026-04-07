@@ -13,6 +13,10 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
+@app.route('/')
+def home():
+    return "🚀 AI English Learning Backend is Running!"
+
 # ==========================================
 # 1. 設置 Google Sheets API
 # ==========================================
