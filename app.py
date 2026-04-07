@@ -43,9 +43,9 @@ def get_ai_model(instruction=""):
     final_instruction = instruction if instruction else default_instruction
     
     try:
-        return genai.GenerativeModel('gemini-1.5-flash', system_instruction=final_instruction)
+        return genai.Generative('gemini-1.5-flash', system_instruction=final_instruction)
     except:
-        return genai.GenerativeModel('gemini-1.5-pro', system_instruction=final_instruction)
+        return genai.Generative('gemini-1.5-pro', system_instruction=final_instruction)
 
 # ==========================================
 # API 路由區塊 (全方位自動重試)
